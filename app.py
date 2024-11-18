@@ -1,3 +1,4 @@
+import uuid
 from flask import Flask, jsonify, request
 import sqlite3
 
@@ -54,27 +55,31 @@ def get_users():
     users_list = [{'telegram_user_id': user[0], 'uuid': user[1]} for user in users]
     return jsonify(users_list)
 
-@app.route('/add_user', methods=['POST'])
-def add_user():
-    """Add a new user to the database."""
+@app.route('/create_user', methods=['POST'])
+def create_user():
+    """Create a new user link or return existing one."""
     data = request.json
-    telegram_user_id = data.get('telegram_user_id')
-    uuid = data.get('uuid')
-    
-    if not telegram_user_id or not uuid:
-        return jsonify({'error': 'Invalid data'}), 400
+    user_id = data.get('telegram_user_id')
     
     conn = get_db()
     cursor = conn.cursor()
-    try:
-        cursor.execute('INSERT INTO UserLink (telegram_user_id, uuid) VALUES (?, ?)', (telegram_user_id, uuid))
-        conn.commit()
-    except sqlite3.IntegrityError as e:
-        return jsonify({'error': str(e)}), 400
-    finally:
-        conn.close()
     
-    return jsonify({'success': True}), 201
+    # Check if the user already exists
+    cursor.execute('SELECT uuid FROM UserLink WHERE telegram_user_id = ?', (user_id,))
+    result = cursor.fetchone()
+    
+    if result:
+        # User already exists, retrieve the existing UUID
+        existing_uuid = result[0]
+        conn.close()
+        return jsonify({'uuid': existing_uuid, 'new': False})
+    else:
+        # User does not exist, create a new UUID and insert it
+        new_uuid = str(uuid.uuid4())
+        cursor.execute('INSERT INTO UserLink (telegram_user_id, uuid) VALUES (?, ?)', (user_id, new_uuid))
+        conn.commit()
+        conn.close()
+        return jsonify({'uuid': new_uuid, 'new': True})
 
 print(f'Starting the server on port 5000...')
 if __name__ == '__main__':
