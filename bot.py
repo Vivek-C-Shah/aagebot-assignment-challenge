@@ -5,6 +5,8 @@ import sqlite3
 import uuid
 import os
 from dotenv import load_dotenv
+from http.server import SimpleHTTPRequestHandler, HTTPServer
+import threading
 
 # Load environment variables from .env file
 load_dotenv()
@@ -65,12 +67,22 @@ async def create(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     conn.close()
 
+def run_http_server():
+    port = int(os.getenv('PORT', 8080))
+    server_address = ('', port)
+    httpd = HTTPServer(server_address, SimpleHTTPRequestHandler)
+    print(f"Starting HTTP server on port {port}")
+    httpd.serve_forever()
+
 def main():
     init_db()
     application = ApplicationBuilder().token(TOKEN).build()
     
     application.add_handler(CommandHandler('start', start))
     application.add_handler(CommandHandler('create', create))
+    
+    # Start the HTTP server in a separate thread
+    threading.Thread(target=run_http_server, daemon=True).start()
     
     application.run_polling()
 
