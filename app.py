@@ -1,4 +1,4 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 import sqlite3
 
 app = Flask(__name__)
@@ -51,9 +51,30 @@ def get_users():
     cursor.execute('SELECT telegram_user_id, uuid FROM UserLink')
     users = cursor.fetchall()
     conn.close()
-    # Convert the result to a list of dictionaries
     users_list = [{'telegram_user_id': user[0], 'uuid': user[1]} for user in users]
     return jsonify(users_list)
+
+@app.route('/add_user', methods=['POST'])
+def add_user():
+    """Add a new user to the database."""
+    data = request.json
+    telegram_user_id = data.get('telegram_user_id')
+    uuid = data.get('uuid')
+    
+    if not telegram_user_id or not uuid:
+        return jsonify({'error': 'Invalid data'}), 400
+    
+    conn = get_db()
+    cursor = conn.cursor()
+    try:
+        cursor.execute('INSERT INTO UserLink (telegram_user_id, uuid) VALUES (?, ?)', (telegram_user_id, uuid))
+        conn.commit()
+    except sqlite3.IntegrityError as e:
+        return jsonify({'error': str(e)}), 400
+    finally:
+        conn.close()
+    
+    return jsonify({'success': True}), 201
 
 print(f'Starting the server on port 5000...')
 if __name__ == '__main__':

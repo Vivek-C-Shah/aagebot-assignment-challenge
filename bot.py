@@ -1,12 +1,13 @@
+from http.server import HTTPServer, SimpleHTTPRequestHandler
 import logging
+import threading
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 import sqlite3
 import uuid
 import os
 from dotenv import load_dotenv
-from http.server import SimpleHTTPRequestHandler, HTTPServer
-import threading
+import requests
 
 # Load environment variables from .env file
 load_dotenv()
@@ -55,13 +56,15 @@ async def create(update: Update, context: ContextTypes.DEFAULT_TYPE):
         link = f'{SERVER_URL}/link/{existing_uuid}'
         await update.message.reply_text(f'{first_name}, your account is already connected. Your link is: {link}')
     else:
-        # User does not exist, create a new UUID and insert it
+        # User does not exist, create a new UUID and send a request to add it
         new_uuid = str(uuid.uuid4())
         try:
-            cursor.execute('INSERT INTO UserLink (telegram_user_id, uuid) VALUES (?, ?)', (user_id, new_uuid))
-            conn.commit()
-            link = f'{SERVER_URL}/link/{new_uuid}'
-            await update.message.reply_text(f'{first_name}, your link is: {link}')
+            response = requests.post(f'{SERVER_URL}/add_user', json={'telegram_user_id': user_id, 'uuid': new_uuid})
+            if response.status_code == 201:
+                link = f'{SERVER_URL}/link/{new_uuid}'
+                await update.message.reply_text(f'{first_name}, your link is: {link}')
+            else:
+                await update.message.reply_text(f'Error: {response.json().get("error", "Unknown error")}')
         except Exception as e:
             print(e)
     
