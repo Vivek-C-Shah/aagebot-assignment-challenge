@@ -67,37 +67,24 @@ async def create(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     conn.close()
 
-# def run_http_server():
-#     port = int(os.getenv('PORT', 8080))
-#     server_address = ('', port)
-#     httpd = HTTPServer(server_address, SimpleHTTPRequestHandler)
-#     print(f"Starting HTTP server on port {port}")
-#     httpd.serve_forever()
+def run_http_server():
+    port = int(os.getenv('PORT', 8080))
+    server_address = ('', port)
+    httpd = HTTPServer(server_address, SimpleHTTPRequestHandler)
+    print(f"Starting HTTP server on port {port}")
+    httpd.serve_forever()
 
-async def main():
+def main():
     init_db()
     application = ApplicationBuilder().token(TOKEN).build()
-
+    
     application.add_handler(CommandHandler('start', start))
     application.add_handler(CommandHandler('create', create))
-
-    # Initialize the application
-    await application.initialize()
-
-    # Set webhook
-    await application.bot.set_webhook(f'{SERVER_URL}/webhook/{TOKEN}')
-
-    # Start the application
-    await application.start()
-    await application.updater.start_webhook(
-        listen='0.0.0.0',
-        port=int(os.getenv('PORT', 8080)),
-        url_path=f'/webhook/{TOKEN}',
-        webhook_url=f'{SERVER_URL}/webhook/{TOKEN}'
-    )
-
-    await application.idle()
+    
+    # Start the HTTP server in a separate thread
+    threading.Thread(target=run_http_server, daemon=True).start()
+    
+    application.run_polling()
 
 if __name__ == '__main__':
-    import asyncio
-    asyncio.run(main())
+    main()
