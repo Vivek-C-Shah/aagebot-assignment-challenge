@@ -81,6 +81,9 @@ async def main():
     application.add_handler(CommandHandler('start', start))
     application.add_handler(CommandHandler('create', create))
 
+    # Initialize the application
+    await application.initialize()
+
     # Set webhook
     await application.bot.set_webhook(f'{SERVER_URL}/webhook/{TOKEN}')
 
